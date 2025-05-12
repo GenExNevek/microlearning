@@ -1,0 +1,3 @@
+google-genai==1.14.0        # Gemini API
+python-dotenv==1.1.0        # Environment variable loading
+pytest-shutil==1.8.1 
