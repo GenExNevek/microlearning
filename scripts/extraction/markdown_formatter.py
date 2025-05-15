@@ -2,10 +2,14 @@
 
 import re
 import os
+import logging
 from datetime import datetime
 from google.genai import types  # Add this import
 from ..config.extraction_prompt import get_extraction_prompt
 from ..config import settings
+from .image_extractor import ImageExtractor
+
+logger = logging.getLogger(__name__)
 
 class MarkdownFormatter:
     """Formats PDF content into structured markdown."""
@@ -13,6 +17,7 @@ class MarkdownFormatter:
     def __init__(self, pdf_reader):
         """Initialize with a PDFReader instance."""
         self.pdf_reader = pdf_reader
+        self.image_extractor = ImageExtractor()
         
     def extract_metadata_from_path(self, pdf_path):
         """Extract metadata from PDF path components."""
@@ -70,6 +75,9 @@ class MarkdownFormatter:
         if not metadata and 'path' in pdf_info:
             metadata = self.extract_metadata_from_path(pdf_info['path'])
         
+        # Extract images from the PDF
+        image_extraction_results = self._extract_images(pdf_info, metadata)
+        
         # Prepare the extraction prompt with metadata
         prompt = get_extraction_prompt(metadata)
         
@@ -103,22 +111,68 @@ class MarkdownFormatter:
             markdown_content = response.text
             
             # Post-process the markdown content
-            processed_content = self.post_process_markdown(markdown_content, metadata)
+            processed_content = self.post_process_markdown(
+                markdown_content, 
+                metadata, 
+                image_extraction_results
+            )
             
             return {
                 'success': True,
                 'content': processed_content,
-                'metadata': metadata
+                'metadata': metadata,
+                'image_extraction': image_extraction_results
             }
             
         except Exception as e:
             return {
                 'success': False,
                 'error': str(e),
-                'metadata': metadata
+                'metadata': metadata,
+                'image_extraction': image_extraction_results
             }
     
-    def post_process_markdown(self, content, metadata):
+    def _extract_images(self, pdf_info, metadata):
+        """Extract images from the PDF file."""
+        # Get the PDF path
+        pdf_path = pdf_info.get('normalized_path') or pdf_info.get('path')
+        
+        if not pdf_path:
+            logger.warning("No PDF path available for image extraction")
+            return {'success': False, 'error': 'No PDF path available'}
+        
+        # Determine the image assets directory
+        img_assets_dir = self._get_image_assets_dir(pdf_path, metadata)
+        
+        # Extract images
+        try:
+            results = self.image_extractor.extract_images_from_pdf(pdf_path, img_assets_dir)
+            logger.info(f"Image extraction completed: {results['extracted_count']} images extracted")
+            return results
+        except Exception as e:
+            error_msg = f"Failed to extract images: {str(e)}"
+            logger.error(error_msg)
+            return {'success': False, 'error': error_msg}
+    
+    def _get_image_assets_dir(self, pdf_path, metadata):
+        """Determine the image assets directory path."""
+        # Get the corresponding markdown file path
+        md_path = pdf_path.replace('.pdf', '.md')
+        
+        # Convert to target directory structure
+        rel_path = os.path.relpath(md_path, settings.PDF_SOURCE_DIR)
+        target_md_path = os.path.join(settings.MARKDOWN_TARGET_DIR, rel_path)
+        
+        # Create the image assets directory name
+        md_dir = os.path.dirname(target_md_path)
+        md_filename = os.path.basename(target_md_path)
+        md_filename_without_ext = os.path.splitext(md_filename)[0]
+        
+        img_assets_dir = os.path.join(md_dir, f"{md_filename_without_ext}-img-assets")
+        
+        return img_assets_dir
+    
+    def post_process_markdown(self, content, metadata, image_extraction_results=None):
         """Apply post-processing to the generated markdown."""
         # Check if content has frontmatter, if not add it
         if not content.startswith('---'):
@@ -156,13 +210,34 @@ class MarkdownFormatter:
                     else:
                         content += f"\n\n{section_marker}\n\n## Key Takeaways\n\n"
         
-        # Fix image references
+        # Update image references based on actual extracted images
         img_assets_dir = f"./{metadata['unit_title_id']}-img-assets"
-        content = re.sub(
-            r'!\[(.*?)\]\((.*?)(?:\.(?:png|jpg|jpeg|gif))\)',
-            r'![\1](' + img_assets_dir + r'/fig1-image.png)',
-            content
-        )
+        
+        # If we have extraction results, update image references to match extracted files
+        if image_extraction_results and image_extraction_results.get('success'):
+            extracted_images = image_extraction_results.get('images', [])
+            
+            # Find and replace image references
+            img_pattern = r'!\[(.*?)\]\((.*?)(?:\.(?:png|jpg|jpeg|gif))\)'
+            
+            def replace_image(match):
+                alt_text = match.group(1)
+                # Use the next available extracted image
+                if extracted_images:
+                    img_info = extracted_images.pop(0)
+                    return f'![{alt_text}]({img_assets_dir}/{img_info["filename"]})'
+                else:
+                    # Fallback to generic naming
+                    return f'![{alt_text}]({img_assets_dir}/fig1-image.png)'
+            
+            content = re.sub(img_pattern, replace_image, content)
+        else:
+            # Fallback: Fix image references with generic naming
+            content = re.sub(
+                r'!\[(.*?)\]\((.*?)(?:\.(?:png|jpg|jpeg|gif))\)',
+                r'![\1](' + img_assets_dir + r'/fig1-image.png)',
+                content
+            )
         
         # Ensure proper spacing around section markers
         content = re.sub(r'(\n*)(<!--.*?-->)(\n*)', r'\n\n\2\n\n', content)

@@ -11,20 +11,6 @@ extraction-date: 2025-05-12
 extractor-name: "Automated Extraction"
 ---
 
-```markdown
----
-unit-id: UNI0001
-unit-title-id: camb_as_physics_m1_l1
-unit-title: AS | Physics - 9702 - 1.1 Physical Quantities
-phase: AS
-subject: Physics
-parent-module-id: MOD0001_camb_as_physics_m1
-parent-course-id: CON0001_camb_as_physics
-batch-id: BAT0001
-extraction-date: 2025-05-12
-extractor-name: "Automated Extraction"
----
-
 <!-- SECTION: INTRODUCTION -->
 
 # AS | Physics - 9702 - 1.1 Physical Quantities
@@ -231,4 +217,3 @@ Starting with the smallest first, what is the order of increasing magnitude of t
 *   Sang D, Jones G, Woodside R and Chadha G (2020), Cambridge International AS & A Level Physics: Coursebook, Third Edition, http://www.cambridge.org/education
 *   Cambridge School Support Hub (Generation Schools Account), School Support Hub :: Home Page (cambridgeinternational.org)
 
-```

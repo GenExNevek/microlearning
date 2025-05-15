@@ -11,19 +11,6 @@ extraction-date: 2025-05-12
 extractor-name: "Automated Extraction"
 ---
 
-```markdown
----
-unit-id: UNI0002
-unit-title-id: camb_as_physics_m1_l2
-unit-title: Deriving SI Units
-phase: AS
-subject: Physics
-parent-module-id: MOD0001_camb_as_physics_m1
-parent-course-id: CON0001_camb_as_physics
-batch-id: BAT0001
-extraction-date: 2025-05-12
-extractor-name: "Automated Extraction"
----
 
 <!-- SECTION: INTRODUCTION -->
 
@@ -296,4 +283,3 @@ An equation v = u + st is given for final velocity. Check the equation for homog
 *   Crundell M, Goodwin G (2020), Cambridge International AS & A Level Physics Student's Book, https://www.hoddereducation.co.uk/
 
 END OF UNIT
-```

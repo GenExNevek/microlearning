@@ -7,6 +7,7 @@ from datetime import datetime
 from .pdf_reader import PDFReader
 from .markdown_formatter import MarkdownFormatter
 from .file_writer import FileWriter
+from .image_extractor import ImageExtractor
 from ..config import settings
 
 # Configure logging
@@ -55,21 +56,38 @@ def transform_pdf_to_markdown(source_file, target_file):
         # Extract metadata from the path
         metadata = formatter.extract_metadata_from_path(source_file)
         
-        # Extract and format the content
+        # Extract and format the content (this now includes image extraction)
         result = formatter.extract_and_format(pdf_info, metadata)
         
         if result['success']:
             # Write the markdown file
             FileWriter.write_markdown_file(result['content'], target_file)
             
-            # Create image assets folder
+            # Create image assets folder (already created during extraction, but ensure it exists)
             img_assets_folder = FileWriter.create_image_assets_folder(target_file)
             
+            # Log the results
             logger.info(f"Transformed: {source_file} -> {target_file}")
-            logger.info(f"Created image assets folder: {img_assets_folder}")
+            
+            # Log image extraction results if available
+            if 'image_extraction' in result and result['image_extraction'].get('success'):
+                img_count = result['image_extraction'].get('extracted_count', 0)
+                logger.info(f"Extracted {img_count} images to: {img_assets_folder}")
+                
+                # Log any extraction errors
+                if result['image_extraction'].get('errors'):
+                    for error in result['image_extraction']['errors']:
+                        logger.warning(f"Image extraction warning: {error}")
+            
             return True
         else:
             logger.error(f"Error transforming {source_file}: {result.get('error', 'Unknown error')}")
+            
+            # Log image extraction errors if any
+            if 'image_extraction' in result and result['image_extraction'].get('errors'):
+                for error in result['image_extraction']['errors']:
+                    logger.error(f"Image extraction error: {error}")
+            
             return False
             
     except Exception as e:
@@ -138,16 +156,41 @@ def process_batch(batch_id=None):
     
     return process_directory(settings.PDF_SOURCE_DIR)
 
+def validate_image_extraction():
+    """Validate that image extraction dependencies are properly installed."""
+    try:
+        import fitz  # PyMuPDF
+        from PIL import Image
+        logger.info("Image extraction dependencies are properly installed")
+        return True
+    except ImportError as e:
+        logger.warning(f"Image extraction dependency missing: {e}")
+        logger.warning("Please install: pip install PyMuPDF Pillow")
+        return False
+
 def main():
     """Main entry point for the extraction script."""
-    parser = argparse.ArgumentParser(description='Extract Rise PDF content to markdown.')
+    parser = argparse.ArgumentParser(description='Extract Rise PDF content to markdown with images.')
     parser.add_argument('--file', help='Single PDF file to process')
     parser.add_argument('--dir', help='Directory containing PDF files to process')
     parser.add_argument('--course', help='Course ID to process (e.g., CON0001)')
     parser.add_argument('--module', help='Module ID to process (e.g., MOD0001)')
     parser.add_argument('--batch', help='Batch ID to process')
     parser.add_argument('--all', action='store_true', help='Process all PDF files')
+    parser.add_argument('--check-deps', action='store_true', help='Check if all dependencies are installed')
     args = parser.parse_args()
+    
+    # Check dependencies if requested
+    if args.check_deps:
+        if validate_image_extraction():
+            print("All dependencies are properly installed.")
+        else:
+            print("Some dependencies are missing. Please check the logs.")
+        return
+    
+    # Validate image extraction capabilities
+    if not validate_image_extraction():
+        logger.warning("Image extraction may not work properly due to missing dependencies")
     
     # Track the time taken
     start_time = datetime.now()
@@ -203,7 +246,7 @@ def main():
         results = process_batch(args.batch)
     elif args.all:
         # Process all
-        logger.info("Processing all PDF files")
+        logger.info("Processing all PDF files with image extraction")
         results = process_directory(settings.PDF_SOURCE_DIR)
     else:
         # No option specified
@@ -222,6 +265,8 @@ def main():
         logger.info("Failed files:")
         for failure in results['failures']:
             logger.info(f"  - {failure}")
+    
+    logger.info("Use --check-deps to verify all dependencies are installed correctly.")
 
 if __name__ == "__main__":
     main()

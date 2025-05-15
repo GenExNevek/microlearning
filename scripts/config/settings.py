@@ -20,5 +20,18 @@ PDF_SOURCE_DIR = os.path.join(BASE_DIR, "original_content_pdf")
 MARKDOWN_TARGET_DIR = os.path.join(BASE_DIR, "original_content_markdown")
 IMAGE_ASSETS_SUFFIX = "-img-assets"
 
+# Image extraction settings
+IMAGE_EXTRACTION_CONFIG = {
+    "dpi": 150,                    # Resolution for image extraction
+    "image_format": "png",         # Default output format
+    "quality": 95,                 # JPG/PNG quality (1-100)
+    "max_width": 1920,            # Maximum width for extracted images
+    "max_height": 1080,           # Maximum height for extracted images
+    "maintain_aspect_ratio": True, # Preserve original aspect ratio
+    "supported_formats": ["png", "jpg", "jpeg"],  # Formats to extract
+    "min_width": 50,              # Minimum width to consider valid image
+    "min_height": 50,             # Minimum height to consider valid image
+}
+
 print(f"ENV file path: {ENV_PATH}")
 print(f"ENV file exists: {os.path.exists(ENV_PATH)}")

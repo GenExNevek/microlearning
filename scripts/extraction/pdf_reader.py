@@ -20,11 +20,14 @@ class PDFReader:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"PDF file not found at {file_path}")
             
+        # Normalize the path for consistent handling
+        normalized_path = os.path.normpath(file_path)
+        
         # Check file size to determine processing method
         if os.path.getsize(file_path) < 20 * 1024 * 1024:  # Less than 20MB
-            return self._prepare_direct_processing(file_path)
+            return self._prepare_direct_processing(normalized_path)
         else:
-            return self._prepare_file_api_processing(file_path)
+            return self._prepare_file_api_processing(normalized_path)
     
     def _prepare_direct_processing(self, file_path):
         """Prepare PDF data for direct processing."""
@@ -33,14 +36,16 @@ class PDFReader:
         return {
             'method': 'direct',
             'data': pdf_data,
-            'path': file_path
+            'path': file_path,
+            'normalized_path': file_path  # Keep normalized path for image extraction
         }
         
     def _prepare_file_api_processing(self, file_path):
         """Prepare PDF for processing via File API."""
         return {
             'method': 'file_api',
-            'path': file_path
+            'path': file_path,
+            'normalized_path': file_path  # Keep normalized path for image extraction
         }
         
     def test_pdf_reading(self, pdf_info):
